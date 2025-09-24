@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
@@ -67,7 +68,7 @@ public class Main implements EventListener {
         window.setVisible(true);
     }
 
-    private final AtomicBoolean saveLogOutput = new AtomicBoolean(false);
+    private final Random random = new Random();
 
     private final LogWindow defaultLog = new LogWindow(System.out);
     private final LogWindow errorLog = new LogWindow(System.err);
@@ -383,7 +384,6 @@ public class Main implements EventListener {
         this.errorLog.getPrintStream().flush();
         System.setOut(this.defaultLog.getPrintStream());
         System.setErr(this.errorLog.getPrintStream());
-        this.saveLogOutput.set(true);
 
         CienBot b = new CienBot(this.maxContextSize);
         for (String msg : this.messages) {
@@ -419,13 +419,23 @@ public class Main implements EventListener {
                             return;
                         }
                         channel.sendMessage(completedMessage).setAllowedMentions(List.of()).complete();
-                    } else if (m.getAuthor().getIdLong() == this.masterUser) {
-                        this.bot.teach(rawMessage);
-                        try {
-                            this.packetStream.writePacket(new Packet(PacketID.ADD_MESSAGE, rawMessage));
-                            this.packetStream.flush();
-                        } catch (IOException ex) {
-                            ex.printStackTrace(System.err);
+                    } else {
+                        if (m.getAuthor().getIdLong() == this.masterUser) {
+                            this.bot.teach(rawMessage);
+                            try {
+                                this.packetStream.writePacket(new Packet(PacketID.ADD_MESSAGE, rawMessage));
+                                this.packetStream.flush();
+                            } catch (IOException ex) {
+                                ex.printStackTrace(System.err);
+                            }
+                            System.out.println("Aprendi: \n"+rawMessage);
+                        }
+                        if (this.random.nextInt(100) == 0) {
+                            String msg = this.bot.generate(this.maxTokens);
+                            if (msg.isEmpty()) {
+                                return;
+                            }
+                            channel.sendMessage(msg).setAllowedMentions(List.of()).complete();
                         }
                     }
                 }

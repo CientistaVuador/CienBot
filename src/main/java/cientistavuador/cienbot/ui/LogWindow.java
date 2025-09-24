@@ -3,7 +3,6 @@ package cientistavuador.cienbot.ui;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 import javax.swing.SwingUtilities;
 
 /**
@@ -43,12 +42,6 @@ public class LogWindow extends javax.swing.JFrame {
                 if (LogWindow.this.originalPrintStream != null) {
                     LogWindow.this.originalPrintStream.flush();
                 }
-                
-                SwingUtilities.invokeLater(() -> {
-                    LogWindow.this.logTextArea.setText(
-                            new String(LogWindow.this.stream.toByteArray(),
-                                    StandardCharsets.UTF_8));
-                });
             }
             
         };
@@ -62,6 +55,14 @@ public class LogWindow extends javax.swing.JFrame {
 
     public PrintStream getPrintStream() {
         return printStream;
+    }
+
+    @Override
+    public void setVisible(boolean b) {
+        if (b) {
+            this.logTextArea.setText(new String(this.stream.toByteArray(), StandardCharsets.UTF_8));
+        }
+        super.setVisible(b);
     }
     
     /**
