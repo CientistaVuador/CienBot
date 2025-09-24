@@ -18,24 +18,18 @@ import java.awt.SystemTray;
 import java.awt.Toolkit;
 import java.awt.TrayIcon;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Logger;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
@@ -203,7 +197,7 @@ public class Main implements EventListener {
                 this.masterUser = Long.parseLong(idString);
                 try {
                     this.packetStream.writePacket(
-                            new Packet(PacketID.SET_BOT_TOKEN,
+                            new Packet(PacketID.SET_MASTER_USER,
                                     ByteBuffer.allocate(8).putLong(this.masterUser).array()));
                     this.packetStream.flush();
                 } catch (IOException ex) {
@@ -214,7 +208,7 @@ public class Main implements EventListener {
                 ex.printStackTrace(System.err);
             }
         });
-        
+
         textChannelItem.addActionListener((e) -> {
             String idString = JOptionPane
                     .showInputDialog(null, "Insira o ID do Canal de Texto:", "Canal de Texto", JOptionPane.INFORMATION_MESSAGE);
@@ -236,7 +230,7 @@ public class Main implements EventListener {
                 ex.printStackTrace(System.err);
             }
         });
-        
+
         trainBot.addActionListener((e) -> {
             JFileChooser chooser = new JFileChooser(new File("").getAbsoluteFile());
             chooser.setFileFilter(new FileNameExtensionFilter("Texto", "txt"));
@@ -254,6 +248,7 @@ public class Main implements EventListener {
                             this.bot.teach(line);
                             this.packetStream.writePacket(new Packet(PacketID.ADD_MESSAGE, line));
                         }
+                        this.packetStream.flush();
                         Toolkit.getDefaultToolkit().beep();
                     } catch (IOException ex) {
                         ex.printStackTrace(System.err);
@@ -261,7 +256,7 @@ public class Main implements EventListener {
                 }
             }
         });
-        
+
         maxContextSizeItem.addActionListener((e) -> {
             String sizeString = JOptionPane
                     .showInputDialog(null, "Insira o Tamanho do Contexto em Tokens:", "Tamanho do Contexto", JOptionPane.INFORMATION_MESSAGE);
@@ -287,7 +282,7 @@ public class Main implements EventListener {
                     "Reinicie para aplicar a alteração", "Aviso",
                     JOptionPane.OK_OPTION, JOptionPane.WARNING_MESSAGE);
         });
-        
+
         maxTokensItem.addActionListener((e) -> {
             String sizeString = JOptionPane
                     .showInputDialog(null, "Insira o Tamanho Máximo da Mensagem em Tokens:", "Tamanho da Mensagem", JOptionPane.INFORMATION_MESSAGE);
@@ -412,18 +407,26 @@ public class Main implements EventListener {
         if (event instanceof MessageReceivedEvent m) {
             if (m.getChannel() instanceof TextChannel channel) {
                 long channelId = m.getChannel().getIdLong();
-                
+
                 if (channelId == this.textChannel) {
                     String botMention = this.jda.getSelfUser().getAsMention();
                     String rawMessage = m.getMessage().getContentRaw();
-                    String completedMessage = this.bot.generate(
-                            rawMessage.substring(botMention.length()),
-                            this.maxTokens);
-                    if (completedMessage.isEmpty()) {
-                        return;
-                    }
                     if (rawMessage.startsWith(botMention)) {
+                        String completedMessage = this.bot.generate(
+                                rawMessage.substring(botMention.length()),
+                                this.maxTokens);
+                        if (completedMessage.isEmpty()) {
+                            return;
+                        }
                         channel.sendMessage(completedMessage).setAllowedMentions(List.of()).complete();
+                    } else if (m.getAuthor().getIdLong() == this.masterUser) {
+                        this.bot.teach(rawMessage);
+                        try {
+                            this.packetStream.writePacket(new Packet(PacketID.ADD_MESSAGE, rawMessage));
+                            this.packetStream.flush();
+                        } catch (IOException ex) {
+                            ex.printStackTrace(System.err);
+                        }
                     }
                 }
             }
