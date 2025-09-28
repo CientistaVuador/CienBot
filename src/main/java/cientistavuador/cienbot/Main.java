@@ -402,43 +402,51 @@ public class Main implements EventListener {
         }
     }
 
+    private void onMessage(MessageReceivedEvent m, TextChannel channel) {
+        if (m.getAuthor().getIdLong() == this.jda.getSelfUser().getIdLong()) {
+            return;
+        }
+        
+        long channelId = m.getChannel().getIdLong();
+
+        if (channelId == this.textChannel) {
+            String botMention = this.jda.getSelfUser().getAsMention();
+            String rawMessage = m.getMessage().getContentRaw();
+            if (rawMessage.startsWith(botMention)) {
+                String completedMessage = this.bot.generate(
+                        rawMessage.substring(botMention.length()),
+                        this.maxTokens);
+                if (completedMessage.isEmpty()) {
+                    return;
+                }
+                channel.sendMessage(completedMessage).setAllowedMentions(List.of()).complete();
+            } else {
+                if (m.getAuthor().getIdLong() == this.masterUser) {
+                    this.bot.teach(rawMessage);
+                    try {
+                        this.packetStream.writePacket(new Packet(PacketID.ADD_MESSAGE, rawMessage));
+                        this.packetStream.flush();
+                    } catch (IOException ex) {
+                        ex.printStackTrace(System.err);
+                    }
+                    System.out.println("Aprendi: \n" + rawMessage);
+                }
+                if (this.random.nextInt(100) == 0) {
+                    String msg = this.bot.generate(this.maxTokens);
+                    if (msg.isEmpty()) {
+                        return;
+                    }
+                    channel.sendMessage(msg).setAllowedMentions(List.of()).complete();
+                }
+            }
+        }
+    }
+
     @Override
     public void onEvent(GenericEvent event) {
         if (event instanceof MessageReceivedEvent m) {
             if (m.getChannel() instanceof TextChannel channel) {
-                long channelId = m.getChannel().getIdLong();
-
-                if (channelId == this.textChannel) {
-                    String botMention = this.jda.getSelfUser().getAsMention();
-                    String rawMessage = m.getMessage().getContentRaw();
-                    if (rawMessage.startsWith(botMention)) {
-                        String completedMessage = this.bot.generate(
-                                rawMessage.substring(botMention.length()),
-                                this.maxTokens);
-                        if (completedMessage.isEmpty()) {
-                            return;
-                        }
-                        channel.sendMessage(completedMessage).setAllowedMentions(List.of()).complete();
-                    } else {
-                        if (m.getAuthor().getIdLong() == this.masterUser) {
-                            this.bot.teach(rawMessage);
-                            try {
-                                this.packetStream.writePacket(new Packet(PacketID.ADD_MESSAGE, rawMessage));
-                                this.packetStream.flush();
-                            } catch (IOException ex) {
-                                ex.printStackTrace(System.err);
-                            }
-                            System.out.println("Aprendi: \n"+rawMessage);
-                        }
-                        if (this.random.nextInt(100) == 0) {
-                            String msg = this.bot.generate(this.maxTokens);
-                            if (msg.isEmpty()) {
-                                return;
-                            }
-                            channel.sendMessage(msg).setAllowedMentions(List.of()).complete();
-                        }
-                    }
-                }
+                onMessage(m, channel);
             }
         }
     }
