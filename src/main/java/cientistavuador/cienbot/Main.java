@@ -106,7 +106,7 @@ public class Main implements EventListener {
                 this.botToken = new String(p.getData(), StandardCharsets.UTF_8);
             }
             case PacketID.SET_MAX_CONTEXT_SIZE -> {
-                this.maxContextSize = ByteBuffer.wrap(p.getData()).getInt();
+                this.maxContextSize = (int) ByteBuffer.wrap(p.getData()).getLong();
             }
             case PacketID.SET_MAX_TOKENS -> {
                 this.maxTokens = ByteBuffer.wrap(p.getData()).getInt();
